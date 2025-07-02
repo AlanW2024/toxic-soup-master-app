@@ -43,7 +43,7 @@ except KeyError:
     st.stop()
 
 llm = ChatOpenAI(
-    model="anthropic/claude-3-haiku-20240307",
+    model="deepseek/deepseek-v3-base:free",
     base_url="https://openrouter.ai/api/v1",
     api_key=api_key,
     temperature=0.8
