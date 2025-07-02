@@ -2,13 +2,10 @@ import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
-
-# --- 程式碼準備 ---
-# 我們不再需要從 langchain.memory 導入任何東西，因為我們將手動管理記憶
-# 也不再需要 os 和 dotenv，因為我們將從 Streamlit Secrets 讀取金鑰
+# 【新增修復】導入標準的訊息物件
+from langchain_core.messages import AIMessage, HumanMessage
 
 # --- 1. 頁面配置與樣式 (前端美化) ---
-# st.set_page_config 是美化第一步，可以設定頁面標題、圖標和佈局
 st.set_page_config(
     page_title="毒雞湯大師 Pro",
     page_icon="😒",
@@ -98,12 +95,25 @@ if user_input := st.chat_input("說出你的煩惱..."):
     # 顯示 AI 的回應
     with st.chat_message("assistant"):
         with st.spinner("大師正在鄙視地看著你，並思考如何點醒你..."):
-            # 執行 Agent，並傳入包含對話歷史的完整輸入
-            response = agent_executor.invoke({
-                "input": user_input,
-                "chat_history": st.session_state.messages
-            })
-            ai_response = response["output"]
+            
+            # 【核心修復】在呼叫 Agent 前，將對話歷史轉換為標準格式
+            chat_history_formatted = []
+            for msg in st.session_state.messages:
+                if msg["role"] == "user":
+                    chat_history_formatted.append(HumanMessage(content=msg["content"]))
+                elif msg["role"] == "assistant":
+                    chat_history_formatted.append(AIMessage(content=msg["content"]))
+
+            try:
+                # 使用轉換後、格式正確的歷史紀錄來執行 Agent
+                response = agent_executor.invoke({
+                    "input": user_input,
+                    "chat_history": chat_history_formatted
+                })
+                ai_response = response["output"]
+            except Exception as e:
+                ai_response = f"哎呀，出錯了，看來連我都救不了你。錯誤：{e}"
+
             st.markdown(ai_response)
     
     # 將 AI 的回應也存入紀錄
