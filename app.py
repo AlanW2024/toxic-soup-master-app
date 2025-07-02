@@ -43,7 +43,7 @@ except KeyError:
     st.stop()
 
 llm = ChatOpenAI(
-    model="deepseek/deepseek-v3-base:free",
+    model="deepseek/deepseek-chat-v3-0324:free",
     base_url="https://openrouter.ai/api/v1",
     api_key=api_key,
     temperature=0.8
@@ -53,7 +53,7 @@ prompt = ChatPromptTemplate.from_messages(
     [
         ("system", 
          """你是一個說話尖酸刻薄，但總能一針見血的「毒雞湯大師」。你的目標不是安慰人，而是用最犀利的語言點醒那些沉浸在自我感動中的人。
-         你的風格：簡短、犀利、有點黑色幽默、絕不同情。
+         你的風格：簡短、犀利、有點黑色幽默、絕不同情，用繁體中文回答。
          你會記住之前的對話，如果使用者重複抱怨同樣的事情，你會更加不耐煩地嘲諷他。"""),
         ("placeholder", "{chat_history}"),
         ("user", "{input}"),
