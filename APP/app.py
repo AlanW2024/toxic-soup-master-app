@@ -2,18 +2,16 @@ import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
-# 【新增修復】導入標準的訊息物件
 from langchain_core.messages import AIMessage, HumanMessage
 
 # --- 1. 頁面配置與樣式 (前端美化) ---
 st.set_page_config(
     page_title="毒雞湯大師 Pro",
     page_icon="😒",
-    layout="centered", # 'centered' 或 'wide'
+    layout="centered",
     initial_sidebar_state="auto",
 )
 
-# 使用 Markdown 和一些 inline CSS 來客製化標題樣式
 st.markdown("""
     <style>
     .title {
@@ -38,22 +36,19 @@ st.markdown("---")
 
 # --- 2. 後端邏輯 (加入記憶) ---
 
-# 從 Streamlit Secrets 讀取金鑰
 try:
     api_key = st.secrets["OPENROUTER_API_KEY"]
 except KeyError:
     st.error("錯誤：找不到 OpenRouter API 金鑰。請在 Streamlit Cloud 的 Secrets 中設定。")
     st.stop()
 
-# 設定 AI 模型 (LLM)
 llm = ChatOpenAI(
-    model="anthropic/claude-3-haiku-20240307", # Haiku 模型聰明、快速且便宜，非常適合對話
+    model="anthropic/claude-3-haiku-20240307",
     base_url="https://openrouter.ai/api/v1",
     api_key=api_key,
-    temperature=0.8 # 稍微調高，讓毒雞湯更有創意
+    temperature=0.8
 )
 
-# 建立包含記憶佔位符的「指令模板」
 prompt = ChatPromptTemplate.from_messages(
     [
         ("system", 
@@ -66,46 +61,40 @@ prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-# 建立 Agent 和執行器 (即使沒有工具，這個結構也更具擴展性)
 agent = create_tool_calling_agent(llm, tools=[], prompt=prompt)
 agent_executor = AgentExecutor(agent=agent, tools=[], verbose=True)
 
 
 # --- 3. 聊天介面與狀態管理 ---
 
-# 初始化對話紀錄
 if "messages" not in st.session_state:
-    # 讓 AI 先說一句開場白
     st.session_state.messages = [
         {"role": "assistant", "content": "又怎麼了？說吧，我聽著呢。別浪費我太多時間。"}
     ]
 
-# 顯示過去的對話紀錄
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 獲取使用者輸入
 if user_input := st.chat_input("說出你的煩惱..."):
-    # 將使用者的回答顯示在畫面上並存入紀錄
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    # 顯示 AI 的回應
     with st.chat_message("assistant"):
         with st.spinner("大師正在鄙視地看著你，並思考如何點醒你..."):
             
-            # 【核心修復】在呼叫 Agent 前，將對話歷史轉換為標準格式
+            # 【核心邏輯修復】我們只轉換「到上一句為止」的歷史紀錄
+            # Python 的 [:-1] 語法可以取得列表中除了最後一項之外的所有元素
             chat_history_formatted = []
-            for msg in st.session_state.messages:
+            for msg in st.session_state.messages[:-1]:
                 if msg["role"] == "user":
                     chat_history_formatted.append(HumanMessage(content=msg["content"]))
                 elif msg["role"] == "assistant":
                     chat_history_formatted.append(AIMessage(content=msg["content"]))
 
             try:
-                # 使用轉換後、格式正確的歷史紀錄來執行 Agent
+                # 現在，chat_history 和 input 完美地分開了
                 response = agent_executor.invoke({
                     "input": user_input,
                     "chat_history": chat_history_formatted
@@ -116,10 +105,8 @@ if user_input := st.chat_input("說出你的煩惱..."):
 
             st.markdown(ai_response)
     
-    # 將 AI 的回應也存入紀錄
     st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
-# 在側邊欄提供一個清空對話的按鈕
 with st.sidebar:
     st.header("操作")
     if st.button("清空對話紀錄", use_container_width=True, type="primary"):
